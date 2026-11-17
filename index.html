@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#b8272d">
+  <meta name="description" content="每日研报速览 — 券商研报纪要、市场复盘与行业研究，一页尽览。">
+  <title>研报速览 · 每日研报知识库</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="site-header" id="siteHeader">
+    <div class="header-inner">
+      <a class="brand" href="#top" aria-label="返回顶部">
+        <span class="brand-mark">研</span>
+        <span class="brand-text">
+          <strong>研报速览</strong>
+          <small>每日研报知识库</small>
+        </span>
+      </a>
+      <nav class="top-nav" aria-label="主导航">
+        <button class="nav-btn active" data-tab="notes">纪要速览</button>
+        <button class="nav-btn" data-tab="pdfs">研报库</button>
+        <button class="nav-btn" data-tab="about">关于</button>
+      </nav>
+      <button class="theme-toggle" id="themeToggle" aria-label="切换主题" title="切换主题">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.33-.05-.67-.1-1.36-.1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 顶部 Hero -->
+  <section class="hero" id="top">
+    <div class="hero-bg"></div>
+    <div class="hero-inner">
+      <div class="hero-badge" id="heroDate">— 加载中 —</div>
+      <h1 class="hero-title">每日研报，一页尽览</h1>
+      <p class="hero-subtitle">研报纪要 · 市场复盘 · 行业研究 · 券商观点，系统化沉淀每一份有价值的研究。</p>
+      <div class="stats-row" id="statsRow">
+        <div class="stat-card"><div class="stat-num" id="statNotes">—</div><div class="stat-label">研报纪要</div></div>
+        <div class="stat-card"><div class="stat-num" id="statPdfs">—</div><div class="stat-label">研报原文</div></div>
+        <div class="stat-card"><div class="stat-num" id="statIndustries">—</div><div class="stat-label">覆盖行业</div></div>
+        <div class="stat-card"><div class="stat-num" id="statBrokers">—</div><div class="stat-label">研究机构</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 主内容 -->
+  <main class="container">
+    <!-- ============ 纪要速览 ============ -->
+    <section class="tab-panel active" id="panel-notes">
+      <div class="panel-head">
+        <div class="panel-title-wrap">
+          <h2 class="panel-title">研报纪要</h2>
+          <span class="panel-count" id="notesCount">共 0 条</span>
+        </div>
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+          <input type="search" id="notesSearch" placeholder="搜索纪要标题或内容…" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="filter-bar" id="notesFilters" role="group" aria-label="纪要分类筛选"></div>
+
+      <div class="cards-grid" id="notesGrid">
+        <div class="loading-state">正在加载纪要数据…</div>
+      </div>
+      <div class="empty-state" id="notesEmpty" hidden>
+        <div class="empty-icon">🔍</div>
+        <p>没有找到匹配的纪要，换个关键词试试</p>
+      </div>
+    </section>
+
+    <!-- ============ 研报库 ============ -->
+    <section class="tab-panel" id="panel-pdfs">
+      <div class="panel-head">
+        <div class="panel-title-wrap">
+          <h2 class="panel-title">研报原文库</h2>
+          <span class="panel-count" id="pdfsCount">共 0 份</span>
+        </div>
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+          <input type="search" id="pdfsSearch" placeholder="搜索研报标题、行业或机构…" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">行业</div>
+        <div class="filter-bar" id="industryFilters" role="group" aria-label="行业筛选"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">机构</div>
+        <div class="filter-bar" id="brokerFilters" role="group" aria-label="机构筛选"></div>
+      </div>
+
+      <div class="pdf-list" id="pdfsList">
+        <div class="loading-state">正在加载研报库…</div>
+      </div>
+      <div class="empty-state" id="pdfsEmpty" hidden>
+        <div class="empty-icon">🔍</div>
+        <p>没有找到匹配的研报，换个关键词试试</p>
+      </div>
+    </section>
+
+    <!-- ============ 关于 ============ -->
+    <section class="tab-panel" id="panel-about">
+      <div class="about-card">
+        <div class="about-logo">研</div>
+        <h2>关于「研报速览」</h2>
+        <p class="about-lead">一个把每日券商研报系统化沉淀、快速查阅的知识库。</p>
+        <div class="about-grid">
+          <div class="about-item">
+            <div class="about-item-icon">📚</div>
+            <h3>纪要速览</h3>
+            <p>每日研报纪要与市场复盘的结构化摘要，按主题分类，支持全文搜索，快速把握市场脉络。</p>
+          </div>
+          <div class="about-item">
+            <div class="about-item-icon">📄</div>
+            <h3>研报原文库</h3>
+            <p>各券商发布的行业研究报告原文，支持按行业、机构筛选，可在线预览或下载 PDF。</p>
+          </div>
+          <div class="about-item">
+            <div class="about-item-icon">🔄</div>
+            <h3>持续更新</h3>
+            <p>数据随每日研报推送自动更新，打开网页即可看到最新内容，手机电脑均可访问。</p>
+          </div>
+          <div class="about-item">
+            <div class="about-item-icon">⚠️</div>
+            <h3>免责声明</h3>
+            <p>本站内容仅供研究学习参考，不构成任何投资建议。研报版权归原发布机构所有，请勿用于商业用途。</p>
+          </div>
+        </div>
+        <div class="about-meta" id="aboutMeta"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>研报速览 · 每日研报知识库</div>
+      <div class="footer-note">内容仅供研究参考，不构成投资建议</div>
+    </div>
+  </footer>
+
+  <!-- 阅读弹窗 -->
+  <div class="reader-overlay" id="readerOverlay" hidden>
+    <div class="reader" role="dialog" aria-modal="true" aria-label="纪要详情">
+      <div class="reader-header">
+        <div class="reader-header-left">
+          <span class="reader-cat" id="readerCat"></span>
+          <span class="reader-time" id="readerTime"></span>
+        </div>
+        <button class="reader-close" id="readerClose" aria-label="关闭">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="reader-body">
+        <aside class="reader-toc" id="readerToc"></aside>
+        <article class="reader-content" id="readerContent"></article>
+      </div>
+      <div class="reading-progress" id="readingProgress"></div>
+    </div>
+  </div>
+
+  <!-- PDF 预览弹窗 -->
+  <div class="pdf-overlay" id="pdfOverlay" hidden>
+    <div class="pdf-viewer" role="dialog" aria-modal="true" aria-label="PDF 预览">
+      <div class="pdf-viewer-header">
+        <div class="pdf-viewer-title" id="pdfViewerTitle">研报预览</div>
+        <div class="pdf-viewer-actions">
+          <a class="pdf-action" id="pdfOpenBtn" target="_blank" rel="noopener" title="新窗口打开">↗ 新窗口</a>
+          <a class="pdf-action primary" id="pdfDownloadBtn" download title="下载 PDF">↓ 下载</a>
+          <button class="pdf-viewer-close" id="pdfViewerClose" aria-label="关闭">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </button>
+        </div>
+      </div>
+      <iframe id="pdfFrame" title="PDF 预览" frameborder="0"></iframe>
+    </div>
+  </div>
+
+  <!-- 回到顶部 -->
+  <button class="back-to-top" id="backToTop" aria-label="回到顶部" title="回到顶部">
+    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="m12 8-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/></svg>
+  </button>
+
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
