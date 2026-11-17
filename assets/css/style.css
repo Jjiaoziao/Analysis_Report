@@ -46,6 +46,8 @@
 }
 
 * { box-sizing: border-box; }
+/* 确保 hidden 属性始终生效（覆盖弹窗的 display:flex） */
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
