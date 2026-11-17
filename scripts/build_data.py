@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-研报数据构建脚本
+研报数据构建脚本（多日期归档版）
 用法: python build_data.py
-将桌面的 2026-11-16.txt 与 2026-11-16 目录下的 PDF 解析为结构化 JSON。
-设计上支持后续每日新增数据：修改 SOURCE_TXT / SOURCE_PDF_DIR / REPORT_DATE 即可。
+把某一天的 txt + PDF 文件夹解析成结构化数据，写入 data/dates/<日期>.json，
+并更新 data/index.json 的日期列表。每运行一次只处理一天，不会影响其它日期。
+新增一天数据：只改下面 SOURCE_TXT / SOURCE_PDF_DIR / REPORT_DATE 三个变量再运行即可。
 """
 import os
 import re
@@ -17,14 +18,13 @@ SOURCE_TXT = os.path.join(DESKTOP, "2026-11-16.txt")
 SOURCE_PDF_DIR = os.path.join(DESKTOP, "2026-11-16")
 REPORT_DATE = "2026-11-16"
 
-# 是否直接引用仓库里已上传的「日期文件夹」中的 PDF（True=不重复复制 PDF，推荐用于保留原仓库的场景）
-# 若改 False，则会把 PDF 复制到项目 pdfs/ 目录，并把 url 指向 pdfs/
-LINK_EXISTING_DATE_FOLDER = True
+# PDF 链接前缀：默认指向仓库里以日期命名的文件夹（不重复上传 PDF）
+# 例如 url = "2026-11-16/xxx.pdf"
+PDF_URL_PREFIX = REPORT_DATE
 
 DATA_DIR = os.path.join(BASE_DIR, "data")
-PDF_DIR = os.path.join(BASE_DIR, "pdfs")
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(PDF_DIR, exist_ok=True)
+DATES_DIR = os.path.join(DATA_DIR, "dates")
+os.makedirs(DATES_DIR, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # 1. 解析 TXT
@@ -35,7 +35,6 @@ EMOJI_RE = re.compile(
 
 
 def clean_title(raw: str) -> str:
-    """去掉标题里的 emoji、markdown 标记，压缩空白。"""
     t = EMOJI_RE.sub("", raw)
     t = re.sub(r"^#+\s*", "", t)
     t = re.sub(r"\s+", " ", t).strip()
@@ -43,7 +42,6 @@ def clean_title(raw: str) -> str:
 
 
 def categorize(title: str, idx: int) -> str:
-    """根据标题判断分类。"""
     if "研报纪要" in title:
         return "每日纪要"
     if "复盘报告" in title or "复盘" in title:
@@ -63,7 +61,6 @@ def parse_txt(path: str):
     with open(path, encoding="utf-8-sig") as f:
         text = f.read()
 
-    # 按 【N】HH:MM - 标题 切分
     pattern = re.compile(r"^【(\d+)】(\d{2}:\d{2})\s*-\s*(.+)$", re.MULTILINE)
     matches = list(pattern.finditer(text))
     segments = []
@@ -75,21 +72,16 @@ def parse_txt(path: str):
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         body = text[start:end].strip("\n")
-
-        # 去掉分隔线
-        body = re.sub(r"^=+\s*$", "", body, flags=re.MULTILINE)
-        body = body.strip("\n")
+        body = re.sub(r"^=+\s*$", "", body, flags=re.MULTILINE).strip("\n")
 
         title = clean_title(raw_title)
         category = categorize(title, idx)
 
-        # 提取元信息行（如 2026-11-15（周日）· 第 1/6 段 · 第 1-4 篇）
         date_note = ""
         first_lines = [l for l in body.split("\n") if l.strip()]
         if first_lines and "· 第" in first_lines[0]:
             date_note = first_lines[0].strip()
 
-        # 提取 ### 小标题作为章节目录
         sections = []
         for sm in re.finditer(r"^(#{2,4})\s+(.+)$", body, re.MULTILINE):
             sec_title = clean_title(sm.group(2))
@@ -107,7 +99,6 @@ def parse_txt(path: str):
             "content": body,
             "charCount": len(body),
         })
-
     return segments
 
 
@@ -129,7 +120,6 @@ BROKERS = [
     "界面新闻", "财联社", "东方财富", "同花顺",
 ]
 BROKER_RE = re.compile("(" + "|".join(sorted(BROKERS, key=len, reverse=True)) + ")")
-# 缓存：PDF 文本提取的券商结果（由 enrich_brokers_from_text 填充）
 BROKER_TEXT_CACHE = {}
 
 
@@ -138,18 +128,6 @@ def guess_broker_from_filename(name: str) -> str:
         if b in name:
             return b
     return ""
-
-
-def detect_broker_from_text(txt: str) -> str:
-    """从 PDF 正文/免责声明中检测券商名，取出现频次最高者。"""
-    tail = txt[-3000:]
-    from collections import Counter
-    c = Counter()
-    for m in BROKER_RE.findall(tail):
-        c[m] += 1
-    if not c:
-        c = Counter(BROKER_RE.findall(txt))
-    return c.most_common(1)[0][0] if c else ""
 
 
 def parse_pdfs(pdf_dir: str):
@@ -162,15 +140,12 @@ def parse_pdfs(pdf_dir: str):
         path = os.path.join(pdf_dir, fn)
         size = os.path.getsize(path)
         stem = fn[:-4]
-        # [行业]标题 格式
         m = re.match(r"^\[([^\]]+)\]\s*(.+)$", stem)
         if m:
             industry, title = m.group(1).strip(), m.group(2).strip()
         else:
             industry, title = "其他", stem
-        # 券商：优先 PDF 正文检测，其次文件名
         broker = BROKER_TEXT_CACHE.get(fn, "") or guess_broker_from_filename(fn)
-        pdf_url = f"{REPORT_DATE}/{fn}" if LINK_EXISTING_DATE_FOLDER else f"pdfs/{fn}"
         pdfs.append({
             "id": hashlib.md5(fn.encode("utf-8")).hexdigest()[:10],
             "filename": fn,
@@ -179,31 +154,15 @@ def parse_pdfs(pdf_dir: str):
             "broker": broker,
             "size": size,
             "sizeMB": round(size / 1024 / 1024, 2),
-            "url": pdf_url,
+            "url": f"{PDF_URL_PREFIX}/{fn}",
         })
     return pdfs
 
 
 # ---------------------------------------------------------------------------
-# 3. 复制 PDF 到项目目录
-# ---------------------------------------------------------------------------
-def copy_pdfs(pdfs):
-    import shutil
-    copied = 0
-    for p in pdfs:
-        src = os.path.join(SOURCE_PDF_DIR, p["filename"])
-        dst = os.path.join(PDF_DIR, p["filename"])
-        if os.path.exists(src) and not os.path.exists(dst):
-            shutil.copy2(src, dst)
-            copied += 1
-    return copied
-
-
-# ---------------------------------------------------------------------------
-# 4. 输出
+# 3. 输出（单日文件 + 索引）
 # ---------------------------------------------------------------------------
 def main():
-    # 载入预提取的 PDF 券商检测结果（如存在）
     import tempfile
     broker_cache_path = os.path.join(tempfile.gettempdir(), "brokers.json")
     if os.path.exists(broker_cache_path):
@@ -214,13 +173,10 @@ def main():
 
     segments = parse_txt(SOURCE_TXT)
     pdfs = parse_pdfs(SOURCE_PDF_DIR)
-    copied = 0 if LINK_EXISTING_DATE_FOLDER else copy_pdfs(pdfs)
 
-    # 按分类统计
     cat_count = {}
     for s in segments:
         cat_count[s["category"]] = cat_count.get(s["category"], 0) + 1
-
     industries = sorted(set(p["industry"] for p in pdfs))
 
     meta = {
@@ -233,18 +189,39 @@ def main():
         "brokers": sorted(set(p["broker"] for p in pdfs if p["broker"])),
     }
 
-    with open(os.path.join(DATA_DIR, "notes.json"), "w", encoding="utf-8") as f:
-        json.dump(segments, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(DATA_DIR, "pdfs.json"), "w", encoding="utf-8") as f:
-        json.dump(pdfs, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(DATA_DIR, "meta.json"), "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
+    day_data = {
+        "date": REPORT_DATE,
+        "meta": meta,
+        "notes": segments,
+        "pdfs": pdfs,
+    }
+    day_path = os.path.join(DATES_DIR, f"{REPORT_DATE}.json")
+    with open(day_path, "w", encoding="utf-8") as f:
+        json.dump(day_data, f, ensure_ascii=False, indent=2)
 
-    print(f"[OK] 解析笔记 {len(segments)} 条")
-    print(f"[OK] 解析 PDF {len(pdfs)} 份，新增复制 {copied} 份")
-    print(f"[OK] 行业分类 {len(industries)} 个: {', '.join(industries)}")
-    print(f"[OK] 笔记分类: {cat_count}")
-    print(f"[OK] 数据输出至 {DATA_DIR}")
+    # 更新索引：保留已有日期，新增/覆盖本次日期
+    index_path = os.path.join(DATA_DIR, "index.json")
+    if os.path.exists(index_path):
+        with open(index_path, encoding="utf-8") as f:
+            index = json.load(f)
+    else:
+        index = {"dates": []}
+
+    dates = [d for d in index.get("dates", []) if d != REPORT_DATE]
+    dates.append(REPORT_DATE)
+    dates = sorted(set(dates), reverse=True)  # 最新日期在前
+    index = {
+        "dates": dates,
+        "latest": dates[0],
+        "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    with open(index_path, "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+
+    print(f"[OK] {REPORT_DATE}: 笔记 {len(segments)} 条, PDF {len(pdfs)} 份")
+    print(f"[OK] 行业 {len(industries)} 个, 券商 {len(meta['brokers'])} 家")
+    print(f"[OK] 单日数据 -> {day_path}")
+    print(f"[OK] 日期索引 -> {index_path} (共 {len(dates)} 天: {', '.join(dates)})")
 
 
 if __name__ == "__main__":
