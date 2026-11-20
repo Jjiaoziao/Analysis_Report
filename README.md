@@ -20,11 +20,17 @@
 │   ├── css/style.css       # 样式
 │   └── js/app.js           # 交互逻辑（日期切换 / 搜索 / 筛选 / 弹窗）
 ├── data/
-│   ├── index.json          # 日期索引（列出所有可切换日期）
+│   ├── index.json          # 日期索引（列出所有可切换日期与最新期数）
 │   └── dates/
-│       └── 2026-11-16.json # 某一天的完整数据（meta + notes + pdfs）
-├── 2026-11-16/             # 原始资料：当天的 txt + 57 份研报 PDF
-├── scripts/build_data.py   # 数据构建脚本
+│       ├── 2026-11-16.json # 某一天的完整结构化数据（meta + notes + pdfs）
+│       ├── 2026-11-16.txt  # 原始总结文本（存档备查）
+│       ├── 2026-11-17.json
+│       └── 2026-11-17.txt
+├── 2026-11-16/             # 2026-11-16 当天的研报 PDF 文件夹
+├── 2026-11-17/             # 2026-11-17 当天的研报 PDF 文件夹
+├── scripts/
+│   ├── build_data.py       # 数据自动构建脚本（一键全自动扫描/增量更新）
+│   └── deploy.sh           # 一键提交与发布脚本
 └── .nojekyll
 ```
 
@@ -32,19 +38,24 @@
 
 网页由 GitHub Pages 自动发布：仓库 → **Settings** → **Pages** → Source 选 **Deploy from a branch** → Branch `main` / `/(root)` → Save。
 
-### 新增一天的研报
+### 新增一天的研报（全自动，推荐）
 
-1. 在仓库根目录新建日期文件夹（如 `2026-11-17/`），把当天的 PDF 和 txt 全部放进去。
-2. 修改 `scripts/build_data.py` 顶部三个变量：
-
-```python
-SOURCE_TXT = r"C:\Users\jiaoz\Desktop\2026-11-17.txt"
-SOURCE_PDF_DIR = r"C:\Users\jiaoz\Desktop\2026-11-17"
-REPORT_DATE = "2026-11-17"
-```
-
-3. 运行 `python scripts/build_data.py` → 自动生成 `data/dates/2026-11-17.json` 并把新日期加入 `data/index.json`（不影响已有日期）。
-4. `git add . && git commit -m "update: 研报 2026-11-17" && git push`，约 1 分钟后网页左侧栏出现新日期。
+1. **放好文件**：
+   - 在项目根目录下放置当天的 PDF 文件夹，命名为日期格式（如 `2026-11-18/`）；
+   - 将当天的总结文本放置在 `data/dates/2026-11-18.txt`（或根目录 `2026-11-18.txt`）。
+2. **一键构建数据**：
+   ```bash
+   python scripts/build_data.py
+   ```
+   > 脚本会自动扫描项目中的日期目录与文本，提取券商机构，生成 `data/dates/<日期>.json` 并自动将新日期更新到 `data/index.json`（最新日期自动排在最前）。
+   > 若只想构建指定日期，可运行：`python scripts/build_data.py --date 2026-11-18`。
+3. **提交并推送到 GitHub**：
+   ```bash
+   git add .
+   git commit -m "update: 研报 2026-11-18"
+   git push
+   ```
+   约 1 分钟后，GitHub Pages 网页即可看到最新的日期与研报内容。
 
 > 说明：PDF 直接引用仓库里的日期文件夹，不重复上传副本；txt 内容已解析进 JSON，网页不直接读取它，但保留作原始存档。
 

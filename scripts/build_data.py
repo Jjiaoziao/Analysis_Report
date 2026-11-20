@@ -1,33 +1,87 @@
 # -*- coding: utf-8 -*-
 """
-研报数据构建脚本（多日期归档版）
-用法: python build_data.py
-把某一天的 txt + PDF 文件夹解析成结构化数据，写入 data/dates/<日期>.json，
-并更新 data/index.json 的日期列表。每运行一次只处理一天，不会影响其它日期。
-新增一天数据：只改下面 SOURCE_TXT / SOURCE_PDF_DIR / REPORT_DATE 三个变量再运行即可。
+研报数据构建脚本（自动扫描与多日期归档版）
+用法:
+  python scripts/build_data.py              # 自动扫描项目内所有日期并构建/增量更新
+  python scripts/build_data.py --date 2026-11-17 # 仅构建指定日期
+  python scripts/build_data.py --force      # 强制重新构建所有日期
+
+数据文件放置规则（任选一种，脚本会自动识别）：
+  1. PDF 目录：放在项目根目录下，命名为对应日期，如 2026-11-17/
+  2. 总结文本：
+     - 推荐：放在 data/dates/2026-11-17.txt
+     - 或：放在项目根目录 2026-11-17.txt
+     - 或：放在对应日期文件夹内 2026-11-17/2026-11-17.txt
 """
 import os
 import re
+import sys
+import glob
 import json
 import hashlib
+import argparse
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DESKTOP = r"C:\Users\jiaoz\Desktop"
-SOURCE_TXT = os.path.join(DESKTOP, "2026-11-16.txt")
-SOURCE_PDF_DIR = os.path.join(DESKTOP, "2026-11-16")
-REPORT_DATE = "2026-11-16"
-
-# PDF 链接前缀：默认指向仓库里以日期命名的文件夹（不重复上传 PDF）
-# 例如 url = "2026-11-16/xxx.pdf"
-PDF_URL_PREFIX = REPORT_DATE
-
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DATES_DIR = os.path.join(DATA_DIR, "dates")
 os.makedirs(DATES_DIR, exist_ok=True)
 
 # ---------------------------------------------------------------------------
-# 1. 解析 TXT
+# 1. 券商库与提取
+# ---------------------------------------------------------------------------
+BROKERS = [
+    "中信建投证券", "中信建投", "中信证券", "华泰证券", "国泰海通", "国泰君安",
+    "招商证券", "广发证券", "海通证券", "申万宏源", "中金公司", "中国银河", "中国银河证券",
+    "兴业证券", "东方证券", "方正证券", "长江证券", "东吴证券", "国信证券", "国金证券",
+    "华创证券", "民生证券", "浙商证券", "天风证券", "国盛证券", "开源证券",
+    "西部证券", "东北证券", "山西证券", "国元证券", "华西证券", "中原证券",
+    "太平洋证券", "财通证券", "东兴证券", "信达证券", "华福证券", "德邦证券",
+    "上海证券", "渤海证券", "长城证券", "中银国际", "中银证券", "粤开证券", "万联证券",
+    "国海证券", "联讯证券", "湘财证券", "南京证券", "第一创业", "西南证券",
+    "华龙证券", "国投证券", "华安证券", "中邮证券", "华宝证券", "华源证券",
+    "东海证券", "国联证券", "平安证券", "光大证券", "华鑫证券", "中泰证券",
+    "花旗", "摩根士丹利", "高盛", "摩根大通", "美银", "瑞银", "野村", "野村证券",
+    "麦格理", "巴克莱", "汇丰", "里昂证券",
+    "界面新闻", "财联社", "东方财富", "同花顺",
+]
+BROKER_RE = re.compile("(" + "|".join(sorted(BROKERS, key=len, reverse=True)) + ")")
+
+
+def guess_broker_from_filename(name: str) -> str:
+    for b in sorted(BROKERS, key=len, reverse=True):
+        if b in name:
+            return b
+    return ""
+
+
+def extract_broker_from_pdf(pdf_path: str) -> str:
+    """尝试使用 PyMuPDF 读取 PDF 前 2 页及末页文本匹配券商机构"""
+    try:
+        try:
+            import pymupdf as fitz
+        except ImportError:
+            import fitz
+        doc = fitz.open(pdf_path)
+        pages = [doc[0]]
+        if len(doc) > 1:
+            pages.append(doc[1])
+        if len(doc) > 2:
+            pages.append(doc[-1])
+        text = "\n".join(page.get_text("text") for page in pages)
+        for b in sorted(BROKERS, key=len, reverse=True):
+            if b in text:
+                if b == "中银国际": return "中银证券"
+                if b == "中信建投证券": return "中信建投"
+                if b == "中国银河证券": return "中国银河"
+                return b
+    except Exception:
+        pass
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# 2. 解析 TXT
 # ---------------------------------------------------------------------------
 EMOJI_RE = re.compile(
     "[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F\u2190-\u21FF\u2B00-\u2BFF]"
@@ -58,6 +112,8 @@ def categorize(title: str, idx: int) -> str:
 
 
 def parse_txt(path: str):
+    if not os.path.isfile(path):
+        return []
     with open(path, encoding="utf-8-sig") as f:
         text = f.read()
 
@@ -103,34 +159,9 @@ def parse_txt(path: str):
 
 
 # ---------------------------------------------------------------------------
-# 2. 解析 PDF 元数据
+# 3. 解析 PDF 元数据
 # ---------------------------------------------------------------------------
-BROKERS = [
-    "国金证券", "中信证券", "中信建投", "华泰证券", "国泰海通", "国泰君安",
-    "招商证券", "广发证券", "海通证券", "申万宏源", "中金公司", "中国银河",
-    "兴业证券", "东方证券", "方正证券", "长江证券", "东吴证券", "国信证券",
-    "华创证券", "民生证券", "浙商证券", "天风证券", "国盛证券", "开源证券",
-    "西部证券", "东北证券", "山西证券", "国元证券", "华西证券", "中原证券",
-    "太平洋证券", "财通证券", "东兴证券", "信达证券", "华福证券", "德邦证券",
-    "上海证券", "渤海证券", "长城证券", "中银证券", "粤开证券", "万联证券",
-    "国海证券", "联讯证券", "湘财证券", "南京证券", "第一创业", "西南证券",
-    "华龙证券", "国投证券", "华安证券", "中邮证券", "华宝证券", "华源证券",
-    "东海证券", "国联证券", "平安证券", "光大证券", "华鑫证券", "中泰证券",
-    "高通", "花旗", "摩根士丹利", "高盛", "摩根大通", "美银", "瑞银", "野村",
-    "界面新闻", "财联社", "东方财富", "同花顺",
-]
-BROKER_RE = re.compile("(" + "|".join(sorted(BROKERS, key=len, reverse=True)) + ")")
-BROKER_TEXT_CACHE = {}
-
-
-def guess_broker_from_filename(name: str) -> str:
-    for b in BROKERS:
-        if b in name:
-            return b
-    return ""
-
-
-def parse_pdfs(pdf_dir: str):
+def parse_pdfs(pdf_dir: str, date_str: str):
     pdfs = []
     if not os.path.isdir(pdf_dir):
         return pdfs
@@ -138,14 +169,19 @@ def parse_pdfs(pdf_dir: str):
         if not fn.lower().endswith(".pdf"):
             continue
         path = os.path.join(pdf_dir, fn)
-        size = os.path.getsize(path)
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            continue
         stem = fn[:-4]
         m = re.match(r"^\[([^\]]+)\]\s*(.+)$", stem)
         if m:
             industry, title = m.group(1).strip(), m.group(2).strip()
         else:
             industry, title = "其他", stem
-        broker = BROKER_TEXT_CACHE.get(fn, "") or guess_broker_from_filename(fn)
+
+        # 优先从 PDF 首页正文提取券商，其次推断文件名
+        broker = extract_broker_from_pdf(path) or guess_broker_from_filename(fn)
         pdfs.append({
             "id": hashlib.md5(fn.encode("utf-8")).hexdigest()[:10],
             "filename": fn,
@@ -154,25 +190,74 @@ def parse_pdfs(pdf_dir: str):
             "broker": broker,
             "size": size,
             "sizeMB": round(size / 1024 / 1024, 2),
-            "url": f"{PDF_URL_PREFIX}/{fn}",
+            "url": f"{date_str}/{fn}",
         })
     return pdfs
 
 
 # ---------------------------------------------------------------------------
-# 3. 输出（单日文件 + 索引）
+# 4. 自动寻找文件并构建单日数据
 # ---------------------------------------------------------------------------
-def main():
-    import tempfile
-    broker_cache_path = os.path.join(tempfile.gettempdir(), "brokers.json")
-    if os.path.exists(broker_cache_path):
-        with open(broker_cache_path, encoding="utf-8") as f:
-            raw = json.load(f)
-        for fn, v in raw.items():
-            BROKER_TEXT_CACHE[fn] = v.get("broker", "")
+def find_source_files(date_str: str, custom_txt: str = None, custom_pdf_dir: str = None):
+    # 查找 txt
+    txt_path = None
+    if custom_txt and os.path.isfile(custom_txt):
+        txt_path = custom_txt
+    else:
+        candidates = [
+            os.path.join(DATES_DIR, f"{date_str}.txt"),
+            os.path.join(BASE_DIR, f"{date_str}.txt"),
+            os.path.join(BASE_DIR, date_str, f"{date_str}.txt"),
+            os.path.join(os.path.expanduser("~"), "Desktop", f"{date_str}.txt"),
+            r"C:\Users\jiaoz\Desktop" + f"\\{date_str}.txt",
+        ]
+        for c in candidates:
+            if os.path.isfile(c):
+                txt_path = c
+                break
 
-    segments = parse_txt(SOURCE_TXT)
-    pdfs = parse_pdfs(SOURCE_PDF_DIR)
+    # 查找 pdf 目录
+    pdf_dir = None
+    if custom_pdf_dir and os.path.isdir(custom_pdf_dir):
+        pdf_dir = custom_pdf_dir
+    else:
+        candidates = [
+            os.path.join(BASE_DIR, date_str),
+            os.path.join(os.path.expanduser("~"), "Desktop", date_str),
+            r"C:\Users\jiaoz\Desktop" + f"\\{date_str}",
+        ]
+        for c in candidates:
+            if os.path.isdir(c):
+                pdf_dir = c
+                break
+
+    return txt_path, pdf_dir
+
+
+def build_single_day(date_str: str, txt_path: str, pdf_dir: str):
+    """构建单日的 JSON 文件"""
+    segments = parse_txt(txt_path) if txt_path else []
+    pdfs = parse_pdfs(pdf_dir, date_str) if pdf_dir else []
+
+    # 如果既没有 txt 也没有 pdf，检查是否已有已有 json，避免覆盖
+    day_path = os.path.join(DATES_DIR, f"{date_str}.json")
+    if not segments and not pdfs:
+        if os.path.isfile(day_path):
+            print(f"[跳过] {date_str}: 无源文件，保留已有 {day_path}")
+            return True
+        else:
+            print(f"[警告] {date_str}: 未找到 TXT 或 PDF 文件，跳过")
+            return False
+
+    # 若 txt_path 为空但已有 json，可尝试保留旧笔记
+    if not segments and os.path.isfile(day_path):
+        try:
+            with open(day_path, encoding="utf-8") as f:
+                old_data = json.load(f)
+                segments = old_data.get("notes", [])
+                print(f"[保留] {date_str}: 沿用已有笔记 {len(segments)} 条")
+        except Exception:
+            pass
 
     cat_count = {}
     for s in segments:
@@ -180,7 +265,7 @@ def main():
     industries = sorted(set(p["industry"] for p in pdfs))
 
     meta = {
-        "reportDate": REPORT_DATE,
+        "reportDate": date_str,
         "generatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "noteCount": len(segments),
         "pdfCount": len(pdfs),
@@ -190,38 +275,96 @@ def main():
     }
 
     day_data = {
-        "date": REPORT_DATE,
+        "date": date_str,
         "meta": meta,
         "notes": segments,
         "pdfs": pdfs,
     }
-    day_path = os.path.join(DATES_DIR, f"{REPORT_DATE}.json")
+
     with open(day_path, "w", encoding="utf-8") as f:
         json.dump(day_data, f, ensure_ascii=False, indent=2)
 
-    # 更新索引：保留已有日期，新增/覆盖本次日期
-    index_path = os.path.join(DATA_DIR, "index.json")
-    if os.path.exists(index_path):
-        with open(index_path, encoding="utf-8") as f:
-            index = json.load(f)
-    else:
-        index = {"dates": []}
+    print(f"[成功] {date_str}: 笔记 {len(segments)} 条, PDF {len(pdfs)} 份, 券商 {len(meta['brokers'])} 家 -> {day_path}")
+    return True
 
-    dates = [d for d in index.get("dates", []) if d != REPORT_DATE]
-    dates.append(REPORT_DATE)
-    dates = sorted(set(dates), reverse=True)  # 最新日期在前
-    index = {
-        "dates": dates,
-        "latest": dates[0],
+
+def update_global_index():
+    """扫描 dates 目录下所有 json 文件并更新 index.json"""
+    json_files = glob.glob(os.path.join(DATES_DIR, "*.json"))
+    valid_dates = []
+    for f in json_files:
+        stem = os.path.splitext(os.path.basename(f))[0]
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", stem):
+            valid_dates.append(stem)
+
+    valid_dates = sorted(set(valid_dates), reverse=True)
+    if not valid_dates:
+        print("[警告] 未发现任何日期的 JSON 数据")
+        return
+
+    index_path = os.path.join(DATA_DIR, "index.json")
+    index_data = {
+        "dates": valid_dates,
+        "latest": valid_dates[0],
         "updatedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     with open(index_path, "w", encoding="utf-8") as f:
-        json.dump(index, f, ensure_ascii=False, indent=2)
+        json.dump(index_data, f, ensure_ascii=False, indent=2)
 
-    print(f"[OK] {REPORT_DATE}: 笔记 {len(segments)} 条, PDF {len(pdfs)} 份")
-    print(f"[OK] 行业 {len(industries)} 个, 券商 {len(meta['brokers'])} 家")
-    print(f"[OK] 单日数据 -> {day_path}")
-    print(f"[OK] 日期索引 -> {index_path} (共 {len(dates)} 天: {', '.join(dates)})")
+    print(f"[索引已更新] 共 {len(valid_dates)} 期: {', '.join(valid_dates)}")
+    print(f"[最新日期] {valid_dates[0]}")
+
+
+def discover_dates():
+    """自动发现项目中所有可能的日期（根目录下以日期命名的文件夹、dates 下的 txt/json 等）"""
+    dates = set()
+    # 根目录下的日期文件夹
+    for name in os.listdir(BASE_DIR):
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", name) and os.path.isdir(os.path.join(BASE_DIR, name)):
+            dates.add(name)
+    # data/dates 下的 txt 与 json
+    for name in os.listdir(DATES_DIR):
+        m = re.match(r"^(\d{4}-\d{2}-\d{2})\.(txt|json)$", name)
+        if m:
+            dates.add(m.group(1))
+    return sorted(dates, reverse=True)
+
+
+# ---------------------------------------------------------------------------
+# 5. 主入口
+# ---------------------------------------------------------------------------
+def main():
+    parser = argparse.ArgumentParser(description="研报数据自动构建脚本")
+    parser.add_argument("--date", type=str, help="指定构建日期，格式如 2026-11-17")
+    parser.add_argument("--txt", type=str, help="指定 txt 总结文件路径")
+    parser.add_argument("--pdf-dir", type=str, help="指定 pdf 文件夹路径")
+    parser.add_argument("--force", action="store_true", help="强制全量重新构建")
+    args = parser.parse_args()
+
+    print("=" * 60)
+    print("🚀 研报速览 · 数据自动构建工具")
+    print("=" * 60)
+
+    # 1. 如果指定了单日期
+    if args.date:
+        target_dates = [args.date]
+    else:
+        target_dates = discover_dates()
+        print(f"[*] 自动发现日期目录/文件: {', '.join(target_dates)}")
+
+    # 2. 依次构建每个日期
+    for d in target_dates:
+        txt_path, pdf_dir = find_source_files(d, args.txt, args.pdf_dir)
+        print(f"\n[处理中] 日期: {d}")
+        print(f"  - 总结文本: {txt_path or '未找到'}")
+        print(f"  - PDF 目录: {pdf_dir or '未找到'}")
+        build_single_day(d, txt_path, pdf_dir)
+
+    # 3. 更新全局 index.json
+    print("\n" + "-" * 60)
+    update_global_index()
+    print("=" * 60)
+    print("✅ 全部构建完成！可直接在浏览器或 GitHub Pages 预览。")
 
 
 if __name__ == "__main__":
