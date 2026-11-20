@@ -1,4 +1,4 @@
-/* ============ 研报速览 · 极简阅读优先交互 v4 ============ */
+/* ============ 研报速览 · 可伸拉左侧栏 + 极简阅读交互 v5 ============ */
 (function () {
   'use strict';
 
@@ -6,99 +6,25 @@
   const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
 
   const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/Jjiaoziao/Analysis_Report/main';
-  const KEYS = { theme: 'yb-theme-v4', fontSize: 'yb-font-v4' };
+  const GITHUB_REPO_API = 'https://api.github.com/repos/Jjiaoziao/Analysis_Report';
+  const KEYS = {
+    theme: 'yb-theme-v5',
+    fontSize: 'yb-font-v5',
+    sidebarWidth: 'yb-sidebar-w',
+    sidebarCollapsed: 'yb-sidebar-collapsed'
+  };
 
-  // 内置示例数据（仅预览环境无法读取仓库 data/ 时启用；部署到 GitHub Pages 自动读真实数据）
+  // 内置示例数据（断网或本地预览完全无数据时兜底）
   const DEMO_DATA = {
-    dates: ['2026-11-18', '2026-11-16'],
-    days: {
-      '2026-11-18': {
-        date: '2026-11-18',
-        meta: {
-          noteCount: 3,
-          pdfCount: 8,
-          industries: ['人工智能', '半导体', '新能源', '医药生物', '宏观策略'],
-          brokers: ['中信证券', '中金公司', '华泰证券', '国泰君安', '招商证券'],
-          generatedAt: '2026-11-18 18:30'
-        },
-        notes: [
-          {
-            id: 1,
-            category: '市场复盘',
-            time: '17:45',
-            title: 'AI 算力链与国产半导体领涨，两市成交额重回活跃区间',
-            charCount: 2240,
-            content: '## 盘面核心\n今日市场延续结构性修复节奏，**AI 算力基础设施**与**国产半导体设备**成为领涨主线，交投情绪明显回暖。\n\n## 重点关注\n- **光模块与液冷**：海外云厂商资本开支指引保持高景气，800G/1.6T 高速光模块与液冷散热订单能见度延续至明年。\n- **半导体设备**：晶圆厂扩产稳步推进，薄膜沉积、刻蚀与量检测设备国产替代弹性突出。\n\n#AI算力 #半导体'
-          },
-          {
-            id: 2,
-            category: '投资策略',
-            time: '16:10',
-            title: '四季度跨年配置：高景气科技成长与高股息红利哑铃平衡',
-            charCount: 1980,
-            content: '## 配置思路\n建议维持**哑铃型配置**：进攻端围绕 AI 端侧硬件、智能驾驶与人形机器人供应链；防御端配置现金流稳健的公用事业与能源红利。\n\n> 聚焦业绩兑现度与产业趋势，回避纯题材博弈。#投资策略'
-          },
-          {
-            id: 3,
-            category: '券商纪要',
-            time: '13:30',
-            title: '海外大储与电网设备纪要：北美数据中心用电拉动变压器出海',
-            charCount: 1820,
-            content: '## 海外需求超预期\n北美、中东与欧洲电网现代化改造叠加 AI 数据中心用电激增，大型储能与高压变压器招标维持高增长，国内头部厂商交付周期与毛利率优势显著。#新能源 #储能'
-          }
-        ],
-        pdfs: [
-          { title: '人工智能行业深度：1.6T 光模块与液冷算力底座演进全景', industry: '人工智能', broker: '中信证券', sizeMB: 3.4, url: '', filename: 'AI_算力与液冷深度.pdf' },
-          { title: '端侧 AI 硬件产业链梳理：AI 眼镜与 AI PC 供应链价值量拆解', industry: '人工智能', broker: '国泰君安', sizeMB: 2.3, url: '', filename: '端侧AI硬件产业链.pdf' },
-          { title: '半导体设备行业专题：先进制程扩产周期下的国产替代弹性测算', industry: '半导体', broker: '中金公司', sizeMB: 2.8, url: '', filename: '半导体设备国产替代.pdf' },
-          { title: '存储芯片行业周报：HBM 产能排期与企业级 SSD 价格追踪', industry: '半导体', broker: '中信证券', sizeMB: 1.7, url: '', filename: '存储芯片行业周报.pdf' },
-          { title: '海外大储与电网设备出海：数据中心电力需求拉动新周期', industry: '新能源', broker: '华泰证券', sizeMB: 4.1, url: '', filename: '海外大储与电网出海.pdf' },
-          { title: '固态电池产业化进程跟踪：半固态装车提速与关键材料突破', industry: '新能源', broker: '华泰证券', sizeMB: 2.9, url: '', filename: '固态电池产业化跟踪.pdf' },
-          { title: '创新药行业跟踪：ADC 与双抗出海 BD 交易复盘与管线展望', industry: '医药生物', broker: '招商证券', sizeMB: 3.0, url: '', filename: '创新药出海复盘.pdf' },
-          { title: '四季度宏观经济与大类资产配置展望：政策落地与盈利修复', industry: '宏观策略', broker: '中金公司', sizeMB: 5.2, url: '', filename: '四季度宏观策略展望.pdf' }
-        ]
-      },
-      '2026-11-16': {
-        date: '2026-11-16',
-        meta: {
-          noteCount: 2,
-          pdfCount: 5,
-          industries: ['智能驾驶', '人形机器人', '人工智能', '宏观策略'],
-          brokers: ['华泰证券', '国泰君安', '中金公司', '招商证券'],
-          generatedAt: '2026-11-16 19:10'
-        },
-        notes: [
-          {
-            id: 101,
-            category: '科技前沿',
-            time: '18:10',
-            title: '高阶智驾平权提速：端到端大模型下沉至 15 万级主流车型',
-            charCount: 2100,
-            content: '## 产业拐点\n头部车企将城市 NOA 下放至 15–20 万元主力价格带，域控制器、大算力智驾芯片与线控底盘迎来放量周期。#智能驾驶'
-          },
-          {
-            id: 102,
-            category: '券商纪要',
-            time: '15:20',
-            title: '人形机器人量产前夜：丝杠、减速器与灵巧手降本路径',
-            charCount: 1850,
-            content: '## 核心零部件\n行星滚柱丝杠、空心杯电机与六维力传感器占整机 BOM 比重高，国产精密制造企业切入头部供应链进程加快。#人形机器人'
-          }
-        ],
-        pdfs: [
-          { title: '智能驾驶深度报告：城市 NOA 下沉周期与域控芯片格局', industry: '智能驾驶', broker: '华泰证券', sizeMB: 3.8, url: '', filename: '智能驾驶深度报告.pdf' },
-          { title: '汽车线控底盘行业专题：高阶智驾必备执行层升级', industry: '智能驾驶', broker: '中金公司', sizeMB: 3.1, url: '', filename: '汽车线控底盘专题.pdf' },
-          { title: '人形机器人产业链全景：丝杠与灵巧手量产降本测算', industry: '人形机器人', broker: '国泰君安', sizeMB: 4.5, url: '', filename: '人形机器人产业链全景.pdf' },
-          { title: '大模型多模态应用商业化进展：Agent 工作流落地调研', industry: '人工智能', broker: '中金公司', sizeMB: 2.6, url: '', filename: '多模态Agent商业化.pdf' },
-          { title: '全球流动性与汇率月度跟踪报告', industry: '宏观策略', broker: '招商证券', sizeMB: 2.1, url: '', filename: '全球流动性月报.pdf' }
-        ]
-      }
-    }
+    dates: ['2026-11-17', '2026-11-16'],
+    days: {}
   };
 
   const state = {
-    sourceMode: 'local',
+    sourceMode: 'local', // 'local' | 'github' | 'demo'
     dates: [],
+    dateMetaCache: {}, // { '2026-11-17': { noteCount, pdfCount } }
+    dateFilter: '',
     currentDate: null,
     day: null,
     activeIndustry: '全部',
@@ -128,11 +54,6 @@
     const p = s.split('-');
     return p.length === 3 ? `${p[0]}.${p[1]}.${p[2]}` : s;
   }
-  function shortDate(s) {
-    if (!s) return '';
-    const p = s.split('-');
-    return p.length === 3 ? `${p[1]}.${p[2]}` : s;
-  }
   function weekday(s) {
     if (!s) return '';
     const d = new Date(s + 'T00:00:00');
@@ -141,11 +62,11 @@
   function toast(msg) {
     const wrap = $('#toastWrap');
     wrap.innerHTML = `<div class="toast">${escapeHtml(msg)}</div>`;
-    setTimeout(() => { wrap.innerHTML = ''; }, 2000);
+    setTimeout(() => { wrap.innerHTML = ''; }, 2400);
   }
   function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(() => toast('已复制总结全文')).catch(() => fallbackCopy(text));
+      navigator.clipboard.writeText(text).then(() => toast('已复制内容')).catch(() => fallbackCopy(text));
     } else {
       fallbackCopy(text);
     }
@@ -159,8 +80,80 @@
       ta.select();
       document.execCommand('copy');
       ta.remove();
-      toast('已复制总结全文');
+      toast('已复制内容');
     } catch { toast('复制失败'); }
+  }
+
+  // ---------- 前端原生 TXT 实时解析引擎（实现“直接读上传的原始文件”） ----------
+  const EMOJI_RE = /[\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u27BF\uFE0F\u2190-\u21FF\u2B00-\u2BFF]/g;
+  function cleanTitle(raw) {
+    let t = raw.replace(EMOJI_RE, '');
+    t = t.replace(/^#+\s*/, '');
+    t = t.replace(/\s+/g, ' ').trim();
+    return t || '未命名';
+  }
+  function categorize(title) {
+    if (title.includes('研报纪要')) return '每日纪要';
+    if (title.includes('复盘报告') || title.includes('复盘')) return '市场复盘';
+    if (title.includes('券商纪要') || title.includes('场深挖')) return '券商纪要';
+    if (['周观点', '投资逻辑', '策略', '布局', '配置'].some(k => title.includes(k))) return '投资策略';
+    if (['批价', '库存', '数据跟踪', '数据库'].some(k => title.includes(k))) return '数据跟踪';
+    if (['AI', '算力', '机器人', '端侧', '百度', '谷歌', 'OpenAI'].some(k => title.includes(k))) return '科技前沿';
+    return '行业动态';
+  }
+  function parseRawTxt(text) {
+    const pattern = /^【(\d+)】(\d{2}:\d{2})\s*-\s*(.+)$/gm;
+    const matches = [];
+    let m;
+    while ((m = pattern.exec(text)) !== null) {
+      matches.push({
+        index: m.index,
+        end: pattern.lastIndex,
+        id: parseInt(m[1], 10),
+        time: m[2],
+        rawTitle: m[3].trim()
+      });
+    }
+    const segments = [];
+    for (let i = 0; i < matches.length; i++) {
+      const cur = matches[i];
+      const start = cur.end;
+      const end = (i + 1 < matches.length) ? matches[i + 1].index : text.length;
+      let body = text.slice(start, end).replace(/^\n+|\n+$/g, '');
+      body = body.replace(/^=+\s*$/gm, '').trim();
+
+      const title = cleanTitle(cur.rawTitle);
+      const category = categorize(title);
+
+      const lines = body.split('\n').map(l => l.trim()).filter(Boolean);
+      let dateNote = '';
+      if (lines.length && lines[0].includes('· 第')) {
+        dateNote = lines[0];
+      }
+
+      const sections = [];
+      const secRe = /^(#{2,4})\s+(.+)$/gm;
+      let sm;
+      while ((sm = secRe.exec(body)) !== null) {
+        const secTitle = cleanTitle(sm[2]);
+        if (secTitle && secTitle.length < 80) {
+          sections.push({ level: sm[1].length, title: secTitle });
+        }
+      }
+
+      segments.push({
+        id: cur.id,
+        time: cur.time,
+        title,
+        rawTitle: cur.rawTitle,
+        category,
+        dateNote,
+        sections,
+        content: body,
+        charCount: body.length
+      });
+    }
+    return segments;
   }
 
   // ---------- Markdown 渲染 ----------
@@ -219,7 +212,7 @@
       .slice(0, 110) || '点击阅读完整总结';
   }
 
-  // ---------- 数据加载 ----------
+  // ---------- 数据加载与智能容错 ----------
   async function fetchJson(url, ms = 4000) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), ms);
@@ -230,219 +223,467 @@
     } finally { clearTimeout(timer); }
   }
 
+  async function fetchText(url, ms = 5000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.text();
+    } finally { clearTimeout(timer); }
+  }
+
+  // 尝试通过 GitHub API 自动探测用户直接上传的新文件夹
+  async function probeGithubDirectories() {
+    try {
+      const items = await fetchJson(`${GITHUB_REPO_API}/contents/`, 3500);
+      if (Array.isArray(items)) {
+        const discovered = [];
+        for (const item of items) {
+          if (item.type === 'dir' && /^\d{4}-\d{2}-\d{2}$/.test(item.name)) {
+            discovered.push(item.name);
+          }
+        }
+        return discovered.sort().reverse();
+      }
+    } catch { /* ignore rate limits */ }
+    return [];
+  }
+
   async function loadIndex() {
+    let foundDates = [];
+
+    // 1. 尝试读本地 data/index.json
     try {
       const idx = await fetchJson('data/index.json', 3000);
       if (idx && Array.isArray(idx.dates) && idx.dates.length) {
         state.sourceMode = 'local';
-        state.dates = idx.dates;
-        $('#demoStrip').hidden = true;
-        renderDates();
-        await switchDate(state.dates[0]);
-        return;
+        foundDates = idx.dates;
       }
     } catch { /* fallback */ }
 
+    // 2. 若本地无，尝试读 GitHub RAW data/index.json
+    if (!foundDates.length) {
+      try {
+        const idx = await fetchJson(`${GITHUB_RAW_BASE}/data/index.json`, 4000);
+        if (idx && Array.isArray(idx.dates) && idx.dates.length) {
+          state.sourceMode = 'github';
+          foundDates = idx.dates;
+        }
+      } catch { /* fallback */ }
+    }
+
+    // 3. 动态探测：如果有新上传但还没写入 index.json 的目录，合并进来
     try {
-      const idx = await fetchJson(`${GITHUB_RAW_BASE}/data/index.json`, 4000);
-      if (idx && Array.isArray(idx.dates) && idx.dates.length) {
-        state.sourceMode = 'github';
-        state.dates = idx.dates;
-        $('#demoStrip').hidden = true;
-        renderDates();
-        await switchDate(state.dates[0]);
-        return;
+      const apiDates = await probeGithubDirectories();
+      if (apiDates.length) {
+        const merged = Array.from(new Set([...foundDates, ...apiDates]));
+        merged.sort().reverse();
+        foundDates = merged;
       }
-    } catch { /* fallback */ }
+    } catch { /* ignore */ }
 
-    state.sourceMode = 'demo';
-    state.dates = DEMO_DATA.dates.slice();
-    $('#demoStrip').hidden = false;
-    renderDates();
-    await switchDate(state.dates[0]);
+    // 4. 兜底
+    if (!foundDates.length) {
+      foundDates = DEMO_DATA.dates.slice();
+      state.sourceMode = 'demo';
+      $('#demoStrip').hidden = false;
+    } else {
+      $('#demoStrip').hidden = true;
+    }
+
+    state.dates = foundDates;
+    renderSidebarDates();
+    if (state.dates.length) {
+      await switchDate(state.dates[0]);
+    }
+  }
+
+  // 加载某一天的数据（支持 .json 优先 + 自动 fallback 直接解析 .txt）
+  async function loadDayData(date) {
+    let data = null;
+
+    // A. 尝试加载 data/dates/{date}.json
+    const jsonPaths = state.sourceMode === 'local'
+      ? [`data/dates/${date}.json`]
+      : [`${GITHUB_RAW_BASE}/data/dates/${date}.json`, `data/dates/${date}.json`];
+
+    for (const p of jsonPaths) {
+      try {
+        data = await fetchJson(p, 4000);
+        if (data) break;
+      } catch { /* try next */ }
+    }
+
+    // B. 若未找到 json，直接尝试加载原始上传的 txt 文件实时解析！
+    if (!data) {
+      const txtCandidates = [
+        `data/dates/${date}.txt`,
+        `${date}/${date}.txt`,
+        `${date}.txt`,
+        `${GITHUB_RAW_BASE}/data/dates/${date}.txt`,
+        `${GITHUB_RAW_BASE}/${date}/${date}.txt`,
+        `${GITHUB_RAW_BASE}/${date}.txt`
+      ];
+      for (const tp of txtCandidates) {
+        try {
+          const txt = await fetchText(tp, 4000);
+          if (txt && txt.trim()) {
+            const parsedNotes = parseRawTxt(txt);
+            data = {
+              date,
+              meta: {
+                reportDate: date,
+                noteCount: parsedNotes.length,
+                pdfCount: 0,
+                industries: [],
+                brokers: []
+              },
+              notes: parsedNotes,
+              pdfs: []
+            };
+            toast(`已直接读取原始文本：${date}.txt`);
+            break;
+          }
+        } catch { /* continue */ }
+      }
+    }
+
+    // C. 尝试通过 GitHub API 直接读取上传文件夹中的所有 PDF 文件（实现真正零配置上传）
+    if (data && (!data.pdfs || data.pdfs.length === 0)) {
+      try {
+        const files = await fetchJson(`${GITHUB_REPO_API}/contents/${date}`, 3500);
+        if (Array.isArray(files)) {
+          const pdfList = [];
+          for (const f of files) {
+            if (f.name.toLowerCase().endsWith('.pdf')) {
+              const stem = f.name.replace(/\.pdf$/i, '');
+              const m = stem.match(/^\[([^\]]+)\]\s*(.+)$/);
+              pdfList.push({
+                id: f.sha ? f.sha.slice(0, 10) : f.name,
+                filename: f.name,
+                industry: m ? m[1].trim() : '其他',
+                title: m ? m[2].trim() : stem,
+                broker: '',
+                size: f.size || 0,
+                sizeMB: f.size ? Math.round(f.size / 1024 / 10.24) / 100 : 0,
+                url: `${date}/${f.name}`
+              });
+            }
+          }
+          if (pdfList.length) {
+            data.pdfs = pdfList;
+            data.meta.pdfCount = pdfList.length;
+            data.meta.industries = Array.from(new Set(pdfList.map(p => p.industry))).sort();
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    return data || DEMO_DATA.days[date];
   }
 
   async function switchDate(date) {
     if (!date) return;
     try {
-      let data;
-      if (state.sourceMode === 'local') {
-        data = await fetchJson(`data/dates/${date}.json`, 5000);
-      } else if (state.sourceMode === 'github') {
-        data = await fetchJson(`${GITHUB_RAW_BASE}/data/dates/${date}.json`, 5000);
-        if (data && Array.isArray(data.pdfs)) {
-          data.pdfs = data.pdfs.map(p => ({
-            ...p,
-            url: p.url && !/^https?:\/\//.test(p.url) ? `${GITHUB_RAW_BASE}/${p.url.replace(/^\.?\//, '')}` : p.url
-          }));
-        }
-      } else {
-        data = DEMO_DATA.days[date];
-      }
+      const data = await loadDayData(date);
       if (!data) throw new Error('数据不存在');
 
       state.currentDate = date;
       state.day = {
         date: data.date || date,
+        meta: data.meta || {},
         notes: Array.isArray(data.notes) ? data.notes : [],
         pdfs: Array.isArray(data.pdfs) ? data.pdfs : []
       };
+
+      // 调整 PDF 线上 URL
+      if (state.sourceMode === 'github' && state.day.pdfs) {
+        state.day.pdfs = state.day.pdfs.map(p => ({
+          ...p,
+          url: p.url && !/^https?:\/\//.test(p.url) ? `${GITHUB_RAW_BASE}/${p.url.replace(/^\.?\//, '')}` : p.url
+        }));
+      }
+
+      // 缓存该日期的计数以更新左侧栏 badge
+      state.dateMetaCache[date] = {
+        noteCount: state.day.notes.length,
+        pdfCount: state.day.pdfs.length
+      };
+
       state.activeIndustry = '全部';
       state.query = '';
       $('#searchInput').value = '';
       $('#editionDateTag').textContent = `${formatDate(date)} ${weekday(date)}`;
-      $('#dateMenu').hidden = true;
-      $('#dateMoreBtn').setAttribute('aria-expanded', 'false');
+      $('#briefCountBadge').textContent = `${state.day.notes.length} 条纪要`;
 
-      renderDates();
+      renderSidebarDates();
       renderBriefs();
       renderIndustryTabs();
       renderReports();
+
+      // 移动端自动收起侧边栏
+      closeMobileSidebar();
     } catch (err) {
       toast('加载失败：' + err.message);
     }
   }
 
-  // ---------- 顶部日期切换 ----------
-  function renderDates() {
-    const visible = state.dates.slice(0, 4);
-    const overflow = state.dates.slice(4);
-    $('#datePills').innerHTML = visible.map((d, i) => `
-      <button type="button" class="date-pill ${d === state.currentDate ? 'active' : ''}" data-date="${escapeAttr(d)}">
-        ${shortDate(d)}${i === 0 ? ' 最新' : ''}
-      </button>
-    `).join('');
-    $$('[data-date]', $('#datePills')).forEach(b => b.addEventListener('click', () => switchDate(b.dataset.date)));
+  // ---------- 左侧侧边栏渲染与交互 ----------
+  function renderSidebarDates() {
+    const listEl = $('#dateList');
+    const filter = (state.dateFilter || '').toLowerCase().trim();
 
-    const moreWrap = $('#dateMoreWrap');
-    if (overflow.length) {
-      moreWrap.hidden = false;
-      $('#dateMenu').innerHTML = state.dates.map(d => `
-        <button type="button" class="date-menu-item ${d === state.currentDate ? 'active' : ''}" data-date="${escapeAttr(d)}">
-          <span>${formatDate(d)}</span><span>${weekday(d)}</span>
+    let datesToShow = state.dates;
+    if (filter) {
+      datesToShow = datesToShow.filter(d => {
+        const wk = weekday(d).toLowerCase();
+        return d.includes(filter) || wk.includes(filter);
+      });
+    }
+
+    $('#sidebarDateCount').textContent = `${datesToShow.length} 期`;
+
+    if (!datesToShow.length) {
+      listEl.innerHTML = `<div class="skeleton-line-sm">无匹配期数</div>`;
+      return;
+    }
+
+    listEl.innerHTML = datesToShow.map((d, idx) => {
+      const isActive = d === state.currentDate;
+      const isLatest = idx === 0 && !filter;
+      const meta = state.dateMetaCache[d];
+      const wk = weekday(d);
+
+      let statText = '';
+      if (meta) {
+        statText = `<span class="date-item-stat">${meta.pdfCount} 篇研报</span> · <span class="date-item-stat">${meta.noteCount} 条纪要</span>`;
+      } else {
+        statText = `<span class="date-item-stat">点击查看</span>`;
+      }
+
+      return `
+        <button type="button" class="date-item ${isActive ? 'active' : ''}" data-date="${escapeAttr(d)}">
+          <div class="date-item-top">
+            <span class="date-item-date">
+              ${d}
+              ${isLatest ? `<span class="date-latest-badge">最新</span>` : ''}
+            </span>
+            <span class="date-item-weekday">${wk}</span>
+          </div>
+          <div class="date-item-bottom">
+            ${statText}
+          </div>
         </button>
-      `).join('');
-      $$('[data-date]', $('#dateMenu')).forEach(b => b.addEventListener('click', () => switchDate(b.dataset.date)));
+      `;
+    }).join('');
+
+    $$('[data-date]', listEl).forEach(btn => {
+      btn.addEventListener('click', () => {
+        const d = btn.dataset.date;
+        if (d && d !== state.currentDate) switchDate(d);
+      });
+    });
+  }
+
+  // 侧边栏拖拽拉伸
+  function initSidebarResizer() {
+    const resizer = $('#sidebarResizer');
+    const layout = $('#appLayout');
+    let startX = 0;
+    let startW = 270;
+
+    // 恢复历史宽度
+    const savedW = parseInt(storageGet(KEYS.sidebarWidth, '270'), 10);
+    if (!isNaN(savedW) && savedW >= 210 && savedW <= 500) {
+      document.documentElement.style.setProperty('--sidebar-w', savedW + 'px');
+    }
+
+    // 恢复折叠状态
+    const collapsed = storageGet(KEYS.sidebarCollapsed, '0') === '1';
+    if (collapsed && window.innerWidth > 900) {
+      layout.classList.add('sidebar-collapsed');
+    }
+
+    resizer.addEventListener('mousedown', e => {
+      e.preventDefault();
+      startX = e.clientX;
+      const currentCssW = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w');
+      startW = parseInt(currentCssW, 10) || 270;
+      document.body.classList.add('is-resizing');
+
+      const onMouseMove = ev => {
+        const delta = ev.clientX - startX;
+        let newW = startW + delta;
+        newW = Math.max(210, Math.min(newW, 500));
+        document.documentElement.style.setProperty('--sidebar-w', newW + 'px');
+      };
+
+      const onMouseUp = ev => {
+        document.body.classList.remove('is-resizing');
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        const finalW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w'), 10);
+        storageSet(KEYS.sidebarWidth, String(finalW));
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  function toggleSidebarCollapse() {
+    const layout = $('#appLayout');
+    const isMobile = window.innerWidth <= 900;
+    if (isMobile) {
+      layout.classList.toggle('mobile-sidebar-open');
     } else {
-      moreWrap.hidden = true;
+      const willCollapse = !layout.classList.contains('sidebar-collapsed');
+      layout.classList.toggle('sidebar-collapsed', willCollapse);
+      storageSet(KEYS.sidebarCollapsed, willCollapse ? '1' : '0');
     }
   }
 
-  // ---------- 1. 每日 AI 总结（顶部精简区） ----------
+  function closeMobileSidebar() {
+    if (window.innerWidth <= 900) {
+      $('#appLayout').classList.remove('mobile-sidebar-open');
+    }
+  }
+
+  // ---------- 每日 AI 总结卡片渲染 ----------
   function renderBriefs() {
-    const section = $('#aiBriefSection');
-    const q = state.query.toLowerCase();
-    const notes = state.day.notes.filter(n =>
-      !q ||
-      String(n.title || '').toLowerCase().includes(q) ||
-      String(n.content || '').toLowerCase().includes(q) ||
-      String(n.category || '').toLowerCase().includes(q)
-    );
-    if (!state.day.notes.length) {
-      section.hidden = true;
-      return;
-    }
-    section.hidden = false;
     const grid = $('#aiBriefGrid');
-    if (!notes.length) {
-      grid.innerHTML = '<div class="skeleton-line" style="padding:18px 0">当日 AI 总结中无匹配关键词</div>';
+    if (!state.day || !Array.isArray(state.day.notes) || !state.day.notes.length) {
+      grid.innerHTML = `<div class="skeleton-line">暂无当日纪要总结</div>`;
       return;
     }
-    grid.innerHTML = notes.map(n => `
-      <article class="brief-card" data-note-id="${n.id}">
+
+    let notes = state.day.notes;
+    const q = state.query.toLowerCase();
+    if (q) {
+      notes = notes.filter(n =>
+        (n.title && n.title.toLowerCase().includes(q)) ||
+        (n.content && n.content.toLowerCase().includes(q)) ||
+        (n.category && n.category.toLowerCase().includes(q))
+      );
+    }
+
+    if (!notes.length) {
+      grid.innerHTML = `<div class="skeleton-line">没有匹配关键词的纪要</div>`;
+      return;
+    }
+
+    grid.innerHTML = notes.map((n, idx) => `
+      <article class="brief-card" data-note-idx="${idx}">
         <div class="brief-card-top">
-          <span class="note-cat-tag">${escapeHtml(n.category || 'AI 总结')}</span>
+          <span class="note-cat-tag">${escapeHtml(n.category || '纪要')}</span>
           <span class="brief-time">${escapeHtml(n.time || '')}</span>
         </div>
-        <h2 class="brief-title">${escapeHtml(n.title)}</h2>
+        <h3 class="brief-title">${escapeHtml(n.title)}</h3>
         <p class="brief-excerpt">${escapeHtml(getExcerpt(n.content))}</p>
       </article>
     `).join('');
 
-    $$('.brief-card', grid).forEach(card => card.addEventListener('click', () => {
-      const n = state.day.notes.find(x => x.id === Number(card.dataset.noteId));
-      if (n) openNoteDrawer(n);
-    }));
-  }
-
-  // ---------- 2. 按行业分类研报原文 ----------
-  function getIndustries() {
-    const map = new Map();
-    state.day.pdfs.forEach(p => {
-      const ind = p.industry || '综合研究';
-      map.set(ind, (map.get(ind) || 0) + 1);
+    $$('.brief-card', grid).forEach(card => {
+      card.addEventListener('click', () => {
+        const n = notes[Number(card.dataset.noteIdx)];
+        if (n) openNoteDrawer(n);
+      });
     });
-    return Array.from(map.entries()); // [[industry, count], ...]
   }
 
+  // ---------- 行业分类 Tabs ----------
   function renderIndustryTabs() {
-    const entries = getIndustries();
-    const total = state.day.pdfs.length;
-    const tabs = [['全部', total], ...entries];
-    $('#industryTabs').innerHTML = tabs.map(([ind, cnt]) => `
-      <button type="button" class="ind-tab ${state.activeIndustry === ind ? 'active' : ''}" data-ind="${escapeAttr(ind)}" role="tab" aria-selected="${state.activeIndustry === ind}">
-        ${escapeHtml(ind === '全部' ? '全部行业' : ind)}<span class="ind-tab-cnt">${cnt}</span>
-      </button>
-    `).join('');
+    const tabsContainer = $('#industryTabs');
+    if (!state.day || !Array.isArray(state.day.pdfs)) {
+      tabsContainer.innerHTML = '';
+      return;
+    }
 
-    $$('.ind-tab', $('#industryTabs')).forEach(btn => btn.addEventListener('click', () => {
-      state.activeIndustry = btn.dataset.ind;
-      renderIndustryTabs();
-      renderReports();
-    }));
+    const counts = {};
+    for (const p of state.day.pdfs) {
+      const ind = p.industry || '其他';
+      counts[ind] = (counts[ind] || 0) + 1;
+    }
+
+    const industries = ['全部', ...Object.keys(counts).sort()];
+    tabsContainer.innerHTML = industries.map(ind => {
+      const cnt = ind === '全部' ? state.day.pdfs.length : counts[ind] || 0;
+      const active = ind === state.activeIndustry ? 'active' : '';
+      return `
+        <button type="button" class="ind-tab ${active}" data-ind="${escapeAttr(ind)}" role="tab">
+          ${escapeHtml(ind)}<span class="ind-tab-cnt">${cnt}</span>
+        </button>
+      `;
+    }).join('');
+
+    $$('[data-ind]', tabsContainer).forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.activeIndustry = btn.dataset.ind;
+        renderIndustryTabs();
+        renderReports();
+      });
+    });
   }
 
+  // ---------- 研报列表渲染 ----------
   function renderReports() {
-    const q = state.query.toLowerCase();
-    const filtered = state.day.pdfs.filter(p => {
-      const ind = p.industry || '综合研究';
-      const matchInd = state.activeIndustry === '全部' || ind === state.activeIndustry;
-      const matchQ = !q ||
-        String(p.title || '').toLowerCase().includes(q) ||
-        ind.toLowerCase().includes(q) ||
-        String(p.broker || '').toLowerCase().includes(q);
-      return matchInd && matchQ;
-    });
-
-    $('#reportsCount').textContent = `共 ${filtered.length} 份研报`;
     const container = $('#industryGroups');
     const empty = $('#emptyState');
+    if (!state.day || !Array.isArray(state.day.pdfs) || !state.day.pdfs.length) {
+      container.innerHTML = `<div class="skeleton-line">暂无研报原文</div>`;
+      empty.hidden = true;
+      $('#reportsCount').textContent = '0 份研报';
+      return;
+    }
 
-    if (!filtered.length) {
+    let pdfs = state.day.pdfs;
+    if (state.activeIndustry !== '全部') {
+      pdfs = pdfs.filter(p => (p.industry || '其他') === state.activeIndustry);
+    }
+    const q = state.query.toLowerCase();
+    if (q) {
+      pdfs = pdfs.filter(p =>
+        (p.title && p.title.toLowerCase().includes(q)) ||
+        (p.broker && p.broker.toLowerCase().includes(q)) ||
+        (p.industry && p.industry.toLowerCase().includes(q))
+      );
+    }
+
+    $('#reportsCount').textContent = `${pdfs.length} 份研报`;
+
+    if (!pdfs.length) {
       container.innerHTML = '';
       empty.hidden = false;
       return;
     }
     empty.hidden = true;
 
-    // 按行业分组渲染
-    const grouped = new Map();
-    filtered.forEach(p => {
-      const ind = p.industry || '综合研究';
-      if (!grouped.has(ind)) grouped.set(ind, []);
-      grouped.get(ind).push(p);
-    });
+    // 按行业分组
+    const groups = {};
+    for (const p of pdfs) {
+      const ind = p.industry || '其他';
+      if (!groups[ind]) groups[ind] = [];
+      groups[ind].push(p);
+    }
 
-    let globalIdx = 0;
     const flatList = [];
-    container.innerHTML = Array.from(grouped.entries()).map(([ind, items]) => {
+    container.innerHTML = Object.entries(groups).map(([ind, items]) => {
       const cardsHtml = items.map(p => {
-        const idx = globalIdx++;
+        const idx = flatList.length;
         flatList.push(p);
         const dlHtml = p.url
-          ? `<a class="dl-icon-btn" href="${escapeAttr(p.url)}" download="${escapeAttr(p.filename || p.title + '.pdf')}" title="下载 PDF" aria-label="下载 PDF">
+          ? `<a class="dl-icon-btn" href="${escapeAttr(p.url)}" download="${escapeAttr(p.filename || p.title + '.pdf')}" title="下载 PDF" aria-label="下载 PDF" target="_blank" rel="noopener">
                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
              </a>`
-          : `<button type="button" class="dl-icon-btn" data-demo-dl="${idx}" title="下载 PDF" aria-label="下载 PDF">
-               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-             </button>`;
+          : '';
         return `
           <article class="pdf-card" data-pdf-idx="${idx}">
             <div class="pdf-card-main">
               <h3 class="pdf-card-title">${escapeHtml(p.title)}</h3>
               <div class="pdf-card-meta">
                 ${p.broker ? `<span class="pdf-broker">${escapeHtml(p.broker)}</span>` : ''}
-                <span>${p.sizeMB} MB</span>
+                <span>${p.sizeMB || '—'} MB</span>
               </div>
             </div>
             <div class="pdf-card-cta">
@@ -471,12 +712,6 @@
         if (p) openPdfWorkspace(p);
       });
     });
-    $$('[data-demo-dl]', container).forEach(btn => {
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        toast('示例条目无真实文件，部署至 GitHub Pages 后即可直接下载');
-      });
-    });
   }
 
   // ---------- AI 总结抽屉 ----------
@@ -484,18 +719,12 @@
     state.activeNote = note;
     $('#drawerCat').textContent = note.category || 'AI 总结';
     $('#drawerTime').textContent = `${formatDate(state.currentDate)} ${note.time || ''}`;
+    $('#noteDrawerContent').innerHTML = `<h1>${escapeHtml(note.title)}</h1>` + renderMarkdown(note.content);
+    $('#noteDrawerContent').style.setProperty('--article-size', state.articleSize + 'px');
 
-    let body = String(note.content || '');
-    const dm = body.match(/^([^\n]*·\s*第\s*\d+\/\d+\s*段[^\n]*)\n?/);
-    if (dm) body = body.slice(dm[0].length);
-
-    const article = $('#noteDrawerContent');
-    article.style.setProperty('--article-size', state.articleSize + 'px');
-    article.innerHTML = `<h1>${escapeHtml(note.title)}</h1>` + renderMarkdown(body);
-
-    const heads = $$('h2, h3', article);
     const toc = $('#noteDrawerToc');
-    if (heads.length >= 2) {
+    const heads = $$('h2, h3', $('#noteDrawerContent'));
+    if (heads.length > 1) {
       toc.hidden = false;
       toc.innerHTML = heads.map(h => `<button type="button" class="toc-chip" data-toc="${h.id}">${escapeHtml(h.textContent)}</button>`).join('');
       $$('[data-toc]', toc).forEach(btn => btn.addEventListener('click', () => {
@@ -520,7 +749,7 @@
     if ($('#pdfWorkspaceOverlay').hidden) document.body.style.overflow = '';
   }
 
-  // ---------- 沉浸式分栏 PDF 阅读工作台 ----------
+  // ---------- PDF 阅读工作台 ----------
   function openPdfWorkspace(pdf) {
     const ind = pdf.industry || '综合研究';
     state.railPdfs = state.day.pdfs.filter(p => (p.industry || '综合研究') === ind);
@@ -536,7 +765,6 @@
     $('#pdfStageTitle').textContent = pdf.title || '研报原文';
     $('#pdfStageSub').textContent = [pdf.industry || '综合研究', pdf.broker, pdf.sizeMB ? pdf.sizeMB + ' MB' : ''].filter(Boolean).join(' · ');
 
-    // 更新左侧同行业列表高亮
     $('#pdfRailList').innerHTML = state.railPdfs.map((p, idx) => `
       <button type="button" class="rail-item ${p.title === pdf.title ? 'active' : ''}" data-rail-idx="${idx}">
         <div class="rail-item-title">${escapeHtml(p.title)}</div>
@@ -578,30 +806,7 @@
     if ($('#noteDrawerOverlay').hidden) document.body.style.overflow = '';
   }
 
-  // ---------- 本地 JSON 导入（预览） ----------
-  function handleJsonImport(file) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result || ''));
-        if (!parsed || (!Array.isArray(parsed.notes) && !Array.isArray(parsed.pdfs))) {
-          throw new Error('请上传 data/dates/YYYY-MM-DD.json');
-        }
-        const d = parsed.date || file.name.replace(/\.json$/i, '') || '本地数据';
-        DEMO_DATA.days[d] = parsed;
-        if (!state.dates.includes(d)) state.dates.unshift(d);
-        state.sourceMode = 'demo';
-        switchDate(d);
-        toast('已导入：' + d);
-      } catch (err) {
-        toast('导入失败：' + err.message);
-      }
-    };
-    reader.readAsText(file, 'utf-8');
-  }
-
-  // ---------- 初始化与事件 ----------
+  // ---------- 初始化与事件监听 ----------
   function initPrefs() {
     const theme = storageGet(KEYS.theme, '');
     if (theme) document.documentElement.setAttribute('data-theme', theme);
@@ -612,26 +817,28 @@
   function bindEvents() {
     $('#brandBtn').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
+    // 侧边栏收起 / 展开
+    $('#collapseSidebarBtn').addEventListener('click', toggleSidebarCollapse);
+    $('#menuBtn').addEventListener('click', toggleSidebarCollapse);
+    $('#sidebarBackdrop').addEventListener('click', closeMobileSidebar);
+
+    // 侧边栏快速筛选
+    $('#dateFilterInput').addEventListener('input', e => {
+      state.dateFilter = e.target.value.trim();
+      renderSidebarDates();
+    });
+
+    // 主题切换
     $('#themeToggle').addEventListener('click', () => {
       const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
       storageSet(KEYS.theme, next);
+      $('#themeLabel').textContent = next === 'dark' ? '浅色模式' : '深色模式';
     });
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    $('#themeLabel').textContent = currentTheme === 'dark' ? '浅色模式' : '深色模式';
 
-    $('#dateMoreBtn').addEventListener('click', e => {
-      e.stopPropagation();
-      const menu = $('#dateMenu');
-      const open = menu.hidden;
-      menu.hidden = !open;
-      $('#dateMoreBtn').setAttribute('aria-expanded', String(open));
-    });
-    document.addEventListener('click', e => {
-      if (!e.target.closest('#dateMoreWrap')) {
-        $('#dateMenu').hidden = true;
-        $('#dateMoreBtn').setAttribute('aria-expanded', 'false');
-      }
-    });
-
+    // 全局搜索
     $('#searchInput').addEventListener('input', e => {
       state.query = e.target.value.trim();
       renderBriefs();
@@ -681,10 +888,6 @@
     $('#pdfWorkspaceOverlay').addEventListener('click', e => { if (e.target === $('#pdfWorkspaceOverlay')) closePdfWorkspace(); });
     $('#toggleRailBtn').addEventListener('click', () => $('#pdfRail').classList.toggle('collapsed'));
 
-    // 导入 JSON
-    $('#importJsonBtn').addEventListener('click', () => $('#jsonFileInput').click());
-    $('#jsonFileInput').addEventListener('change', e => handleJsonImport(e.target.files[0]));
-
     // 快捷键
     document.addEventListener('keydown', e => {
       if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
@@ -693,12 +896,17 @@
       } else if (e.key === 'Escape') {
         if (!$('#pdfWorkspaceOverlay').hidden) closePdfWorkspace();
         else if (!$('#noteDrawerOverlay').hidden) closeNoteDrawer();
+        else if ($('#appLayout').classList.contains('mobile-sidebar-open')) closeMobileSidebar();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebarCollapse();
       }
     });
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     initPrefs();
+    initSidebarResizer();
     bindEvents();
     loadIndex();
   });
