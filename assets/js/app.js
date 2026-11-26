@@ -382,11 +382,14 @@
   }
 
   // ---------- 数据请求与多源容错 ----------
-  async function fetchJson(url, ms = 4500) {
+  async function fetchJson(url, ms = 4500, noCache = false) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), ms);
     try {
-      const res = await fetch(url, { signal: ctrl.signal });
+      const res = await fetch(url, {
+        signal: ctrl.signal,
+        cache: noCache ? 'no-cache' : 'default'
+      });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     } finally { clearTimeout(timer); }
@@ -421,7 +424,7 @@
     let indexObj = null;
 
     try {
-      indexObj = await fetchJson('data/index.json', 3500);
+      indexObj = await fetchJson(`data/index.json?t=${Date.now()}`, 3500, true);
       if (indexObj && Array.isArray(indexObj.dates) && indexObj.dates.length) {
         state.sourceMode = 'local';
         foundDates = indexObj.dates;
@@ -430,7 +433,7 @@
 
     if (!foundDates.length) {
       try {
-        indexObj = await fetchJson(`${GITHUB_RAW_BASE}/data/index.json`, 4500);
+        indexObj = await fetchJson(`${GITHUB_RAW_BASE}/data/index.json?t=${Date.now()}`, 4500, true);
         if (indexObj && Array.isArray(indexObj.dates) && indexObj.dates.length) {
           state.sourceMode = 'github';
           foundDates = indexObj.dates;
@@ -516,8 +519,8 @@
       }
     }
 
-    // Fallback：通过 GitHub API 动态探测该日期文件夹下的 PDF
-    if (data && (!data.pdfs || data.pdfs.length === 0)) {
+    // Fallback：通过 GitHub API 动态探测该日期文件夹下的 PDF（即使仅有 PDF 文件夹尚无 txt/json 也可正常展示）
+    if (!data || !data.pdfs || data.pdfs.length === 0) {
       try {
         const files = await fetchJson(`${GITHUB_REPO_API}/contents/${date}`, 3500);
         if (Array.isArray(files)) {
@@ -539,6 +542,14 @@
             }
           }
           if (pdfList.length) {
+            if (!data) {
+              data = {
+                date,
+                meta: { reportDate: date, noteCount: 0, pdfCount: 0, industries: [], brokers: [] },
+                notes: [],
+                pdfs: []
+              };
+            }
             data.pdfs = pdfList;
             data.meta.pdfCount = pdfList.length;
             data.meta.industries = Array.from(new Set(pdfList.map(p => p.industry))).sort();
