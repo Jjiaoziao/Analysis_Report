@@ -4,5 +4,19 @@
     "2026-11-16"
   ],
   "latest": "2026-11-17",
-  "updatedAt": "2026-11-20 15:47:10"
+  "updatedAt": "2026-11-26 14:36:33",
+  "stats": {
+    "2026-11-17": {
+      "noteCount": 45,
+      "pdfCount": 56,
+      "industryCount": 27,
+      "brokerCount": 10
+    },
+    "2026-11-16": {
+      "noteCount": 33,
+      "pdfCount": 57,
+      "industryCount": 31,
+      "brokerCount": 14
+    }
+  }
 }
