@@ -1,11 +1,25 @@
 {
   "dates": [
+    "2026-11-25",
+    "2026-11-24",
     "2026-11-17",
     "2026-11-16"
   ],
-  "latest": "2026-11-17",
-  "updatedAt": "2026-11-26 14:36:33",
+  "latest": "2026-11-25",
+  "updatedAt": "2026-11-26 22:57:36",
   "stats": {
+    "2026-11-25": {
+      "noteCount": 39,
+      "pdfCount": 25,
+      "industryCount": 19,
+      "brokerCount": 10
+    },
+    "2026-11-24": {
+      "noteCount": 46,
+      "pdfCount": 40,
+      "industryCount": 28,
+      "brokerCount": 13
+    },
     "2026-11-17": {
       "noteCount": 45,
       "pdfCount": 56,
